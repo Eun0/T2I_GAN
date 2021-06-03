@@ -39,7 +39,7 @@ _DISC_ARCH = {"DF_DISC":DF_DISC, }
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train T2I-GAN')
-    parser.add_argument('--cfg',type=str,default='cfg/df_gan.yml')
+    parser.add_argument('--cfg',type=str,default='cfg/df_gan_sbert_nomagp.yml')
     parser.add_argument('--gpu',dest = 'gpu_id', type=int, default=0)
     parser.add_argument('--seed',type=int,default=100)
     parser.add_argument('--resume_epoch',type=int,default=0)
@@ -86,7 +86,7 @@ def sent_loss(imgs, txts, labels, b_global):
     s1 = s1.mean()
     
     s0 = 0.
-    if cfg.ENCODER_LOSS.SENT == 'DAMSM':
+    if cfg.TRAIN.ENCODER_LOSS.SENT == 'DAMSM':
         s0 = F.log_softmax(scores, dim=0) # [bs(imgs), bs]
         s0 = s0 * labels # [bs, bs]
         s0 = - (s0.sum(0)) / num_pos
@@ -112,7 +112,7 @@ def img_loss(real_imgs, fake_imgs, labels, b_global):
     i1 = i1.mean()
 
     i0 = 0.
-    if cfg.ENCODER_LOSS.DISC == 'DAMSM':
+    if cfg.TRAIN.ENCODER_LOSS.DISC == 'DAMSM':
         i0 = F.log_softmax(scores, dim=0) # [bs(real), bs]
         i0 = i0 * labels #[bs,bs]
         i0 = -(i0.sum(0)) / num_pos
@@ -211,6 +211,9 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
             optimizerD.step()
 
             if cfg.TRAIN.MAGP:
+                if cfg.TEXT.JOINT_FT:
+                    words_embs, sent_embs, mask = text_encoder(caps, cap_lens)
+                    sent_embs = sent_embs.detach()
                
                 interpolated = (imgs.data).requires_grad_()
                 sent_inter = (sent_embs.data).requires_grad_()
@@ -237,6 +240,9 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
             ###### Train Generator            
             if i % cfg.TRAIN.N_CRITIC == 0:
                 #del fake_features
+                if cfg.TEXT.JOINT_FT:
+                    words_embs, sent_embs, mask = text_encoder(caps, cap_lens)
+                    fake = netG(noise=noise, sent_embs=sent_embs, words_embs=words_embs, mask = mask)
 
                 if cfg.TEXT.G_SENT_DETACH:
                     sent_embs = sent_embs.detach()
@@ -470,7 +476,7 @@ if __name__ == '__main__':
     d_param = list(netD.parameters())
 
     if cfg.TEXT.JOINT_FT:
-        for m in text_encoder.parameters():
+        for name,m in text_encoder.named_parameters():
             if m.requires_grad:
                 if cfg.TEXT.UPDATE_WITH_G:
                     g_param.append(m)

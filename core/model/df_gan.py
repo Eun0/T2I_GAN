@@ -82,7 +82,7 @@ class DF_GEN(nn.Module):
         self.upblocks = nn.ModuleList(
             [G_Block(in_dim = arch['in_channels'][i],
                     out_dim = arch['out_channels'][i],
-                    cond_dim = cond_dim,
+                    cond_dim = nef,
                     upsample = arch['upsample'][i] ) for i in range(arch['depth'])]
         )
 
@@ -165,6 +165,7 @@ class D_GET_LOGITS(nn.Module):
         out_img = out_img.view(x.size(0), -1) # [bs, ndf*16] # for text-img contrastive learning
         if self.img_match:
             out_img = self.proj_match(out_img) # [bs, cond_dim] # for text-img contrastive learning
+            out_sent = sent_embs
         else:
             out_sent = self.proj_match(sent_embs) # [bs, ndf * 16] for text-img contrastive learning or [bs, nef]
         
