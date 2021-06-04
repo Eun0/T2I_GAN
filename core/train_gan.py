@@ -147,6 +147,8 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
     if args.log_type == 'wdb':
         wandb.watch(netG,log_freq=cfg.TRAIN.LOG_INTERVAL)
         wandb.watch(netD,log_freq=cfg.TRAIN.LOG_INTERVAL)
+        if cfg.TEXT.JOINT_FT:
+            wandb.watch(text_encoder, log_freq=cfg.TRAIN.LOG_INTERVAL)
 
     i = 0
     log_dict = {}
