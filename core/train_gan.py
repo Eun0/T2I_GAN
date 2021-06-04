@@ -314,7 +314,7 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
         with torch.no_grad():
             netG.eval()
             text_encoder.eval()
-            words_embs, sent_embs, mask = text_encoder(caps, cap_lens)
+            words_embs, sent_embs, mask = text_encoder(fixed_caps, fixed_cap_lens)
             fake = netG(fixed_noise, sent_embs, words_embs = words_embs, mask = mask)
             vutils.save_image(fake.data,f'{img_dir}/fake_samples_epoch_{epoch:03d}.png',normalize=True,scale_each=True)
 
@@ -324,7 +324,7 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
             torch.save(optimizerG.state_dict(),f'{model_dir}/optimizerG.pth')
             torch.save(optimizerD.state_dict(),f'{model_dir}/optimizerD.pth')
             logger.info('Save models')
-            eval(cfg = cfg, args = args, loader = test_loader, state_epoch = epoch, text_encoder = text_encoder, netG = netG, logger = logger, num_samples=6000, writer = writer)
+            eval(cfg = cfg, args = args, loader = test_loader, state_epoch = epoch, text_encoder = text_encoder, netG = netG, logger = logger, img_dir = img_dir, num_samples=6000, writer = writer)
 
 
 @torch.no_grad()
