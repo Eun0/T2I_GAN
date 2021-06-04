@@ -21,9 +21,10 @@ from pytorch_fid.fid_score import calculate_fid_given_paths
 
 from config import cfg, cfg_from_file
 from dataset import WordTextDataset, SentTextDataset, index_to_sent
-from model.encoder import RNN_ENCODER, SBERT_ENCODER
+from model.encoder import RNN_ENCODER, SBERT_ENCODER, SBERT_FT_ENCODER
 
 from model.df_gan import DF_GEN, DF_DISC
+from model.xmc_gan import XMC_DISC
 
 from utils.logger import setup_logger
 from utils.miscc import count_params, weight_init
@@ -32,14 +33,14 @@ import multiprocessing
 multiprocessing.set_start_method('spawn', True)
 
 _TEXT_DATASET = {"WORD":WordTextDataset, "SENT":SentTextDataset, }
-_TEXT_ARCH = {"RNN":RNN_ENCODER, "SBERT":SBERT_ENCODER, }
+_TEXT_ARCH = {"RNN":RNN_ENCODER, "SBERT":SBERT_ENCODER, "SBERT_FT":SBERT_FT_ENCODER}
 _GEN_ARCH = {"DF_GEN":DF_GEN, }
-_DISC_ARCH = {"DF_DISC":DF_DISC, }
+_DISC_ARCH = {"DF_DISC":DF_DISC, "XMC_DISC":XMC_DISC}
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train T2I-GAN')
-    parser.add_argument('--cfg',type=str,default='cfg/df_gan_sbert_nomagp.yml')
+    parser.add_argument('--cfg',type=str,default='cfg/df_gen_xmc_disc_cond_nch48_sbert_ft_img_match_sent_disc_global05_loss_nomagp.yml')
     parser.add_argument('--gpu',dest = 'gpu_id', type=int, default=0)
     parser.add_argument('--seed',type=int,default=100)
     parser.add_argument('--resume_epoch',type=int,default=0)
@@ -60,15 +61,16 @@ def cosine_scores(emb0, emb1):
 def make_labels(batch_size, sent_embs, b_global, p = 0.6):
 
     labels = torch.diag(torch.ones(batch_size)).cuda()
+    num_pos = torch.ones(1)
     if b_global:
         sim_mat = cosine_scores(sent_embs,sent_embs) # [bs, bs]
         sim_mat.fill_diagonal_(3)
         global_pos = (sim_mat > p) & (sim_mat < 3)
-        num_pos = (global_pos > 0).sum(1).clamp_(min=1) + 1
+        num_pos = global_pos.sum(1) + 1
         global_weight = cfg.TRAIN.SMOOTH.GLOBAL if (cfg.TRAIN.SMOOTH.GLOBAL != 0.) \
                     else torch.reciprocal(num_pos.float())
         labels = (labels +  global_weight * global_pos).clamp_(max = 1)
-    return labels.detach()
+    return labels.detach(), num_pos
 
 def sent_loss(imgs, txts, labels, b_global):
     if not b_global:
@@ -162,9 +164,12 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
             
             caps = texts[0]
             cap_lens = texts[1]
-            words_embs, sent_embs, mask = text_encoder(caps, cap_lens)
             if not cfg.TEXT.JOINT_FT:
+                words_embs, sent_embs, mask = text_encoder(caps, cap_lens)
                 words_embs, sent_embs = words_embs.detach(), sent_embs.detach()
+                bert_embs = sent_embs
+            else:
+                words_embs, sent_embs, mask, bert_embs = text_encoder(caps, cap_lens)
             
             imgs = imgs.cuda()
 
@@ -192,7 +197,7 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
                 mis_loss += errD_mismatch
             
             if (cfg.TRAIN.ENCODER_LOSS.SENT != '') or cfg.TRAIN.ENCODER_LOSS.WORD or (cfg.TRAIN.ENCODER_LOSS.DISC != '') or cfg.TRAIN.ENCODER_LOSS.VGG:
-                labels = make_labels(batch_size, b_global= cfg.TRAIN.ENCODER_LOSS.B_GLOBAL, sent_embs = sent_embs)
+                labels, num_pos = make_labels(batch_size, b_global= cfg.TRAIN.ENCODER_LOSS.B_GLOBAL, sent_embs = bert_embs)
             
             enc_loss = 0.
             if cfg.TRAIN.ENCODER_LOSS.SENT != '':
@@ -241,7 +246,7 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
             if i % cfg.TRAIN.N_CRITIC == 0:
                 #del fake_features
                 if cfg.TEXT.JOINT_FT:
-                    words_embs, sent_embs, mask = text_encoder(caps, cap_lens)
+                    words_embs, sent_embs, mask, _ = text_encoder(caps, cap_lens)
                     fake = netG(noise=noise, sent_embs=sent_embs, words_embs=words_embs, mask = mask)
 
                 if cfg.TEXT.G_SENT_DETACH:
@@ -342,15 +347,17 @@ def eval(cfg, args, loader, state_epoch, text_encoder, netG, logger, img_dir, nu
     save_org = True if len(os.listdir(org_dir)) != num_samples else False
     #save_org = True
 
-
     for data in loader:
-        batch_size = imgs.size(0)
         imgs,texts_lst,keys = data 
         texts = texts_lst[0]
+        batch_size = imgs.size(0)
         
         caps = texts[0]
         cap_lens = texts[1]
-        words_embs, sent_embs, mask = text_encoder(caps, cap_lens)
+        if not cfg.TEXT.JOINT_FT:
+            words_embs, sent_embs, mask = text_encoder(caps, cap_lens)
+        else:
+            words_embs, sent_embs, mask, bert_embs = text_encoder(caps, cap_lens)
         words_embs, sent_embs = words_embs.detach(), sent_embs.detach()
 
         noise = torch.randn(sent_embs.size(0), cfg.TRAIN.NOISE_DIM).cuda()
