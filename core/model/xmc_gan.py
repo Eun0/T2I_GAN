@@ -89,13 +89,14 @@ class PROJD_GET_LOGITS(nn.Module):
         out = self.pool(out) # [bs, c_in, 1, 1]
         out = out.view(out.size(0),-1) # [bs, c_in]
         if self.img_match:
-            out = self.proj_match(out) # [bs, cond_dim]
+            out_img = self.proj_match(out) # [bs, cond_dim]
         else:
             sent_embs = self.proj_match(sent_embs) # [bs, c_in]
+            out_img = out
 
         match = 0.
         if self.cond:
-            match += torch.einsum('be,be->b', out, sent_embs)
+            match += torch.einsum('be,be->b', out_img, sent_embs)
         if self.uncond:
             logit = self.proj_logit(out)
             logit = logit.view(-1)
