@@ -169,7 +169,7 @@ class RNN_ENCODER(nn.Module):
 
         self._define_modules()
         
-        self._init_weights()
+        #self._init_weights()
 
     def _define_modules(self):
         self.encoder = nn.Embedding(self.ntoken,self.ninput)

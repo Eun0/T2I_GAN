@@ -10,3 +10,13 @@ def weight_init(m):
 
 def count_params(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+def save_trainable_state_dict(model, file_name):
+
+    state_dict = model.state_dict()
+    for name,param in model.named_parameters():
+        if not param.requires_grad:
+            del state_dict[name]
+    
+    torch.save(state_dict, file_name)
