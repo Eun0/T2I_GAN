@@ -61,20 +61,24 @@ TEXT:
   MAX_LENGTH: 20
   VOCA_SIZE: 27297
 
-  ENCODER_NAME: 'SBERT' #'RNN' # 'SBERT'
+  ENCODER_NAME: 'SBERT_FT' #'RNN' # 'SBERT' # 'SBERT_FT'
   ENCODER_DIR: ''    #''   #'data/DAMSMencoders/coco/text_encoder100.pth'
   EMBEDDING_DIM: 768 #256  #768
-  NUM_LAYERS: 1
-  RNN_TYPE: 'LSTM'
+  
   G_SENT_DETACH: True
+  JOINT_FT: True
+  UPDATE_WITH_G: True
+  UPDATE_WITH_D: True
 
+  # if use rnn text_encoder
+  #NUM_LAYERS: 1
+  #RNN_TYPE: 'LSTM'
+  
   # if use bert text encoder
   FIX_BERT: True
   BERT_NORM: False
   POOLING_MODE: 'MEAN'
-  JOINT_FT: True
-  UPDATE_WITH_G: True
-  UPDATE_WITH_D: True
+  
   #SENT_FT: False
   #WORD_FT: False
   

@@ -1,4 +1,4 @@
-CONFIG_NAME: 'DF_GAN_SBERT_FT_IMG_MATCH_SENT_LOSS_NOMAGP'
+CONFIG_NAME: 'DF_GEN_XMC_DISC_COND_NCH48_SBERT_FT_IMG_MATCH_SENT_DISC_GLOBAL05_LOSS_NOMAGP'
 DATASET_NAME: 'coco'
 
 TRAIN:
@@ -20,22 +20,22 @@ TRAIN:
   MAGP: False
 
   ENCODER_LOSS:
-    B_GLOBAL: False
+    B_GLOBAL: True
     SENT: 'XMC'
     WORD: False
-    DISC: ''
+    DISC: 'XMC'
     VGG: False
 
   SMOOTH:
-    GLOBAL: 0. # if 0 adaptive 
+    GLOBAL: 0.5 # if 0 adaptive 
 
   OPT:
     G_LR: 0.0001
     G_BETA1: 0.0
     G_BETA2: 0.9
     D_LR: 0.0004
-    D_BETA1: 0.0
-    D_BETA2: 0.9
+    D_BETA1: 0.5
+    D_BETA2: 0.999
 
 GEN:
   ENCODER_NAME: 'DF_GEN'
@@ -43,10 +43,10 @@ GEN:
   PROJ_TEXT: False
 
 DISC:
-  ENCODER_NAME: 'DF_DISC'
+  ENCODER_NAME: 'XMC_DISC'
   ENCODER_DIR: ''
-  NCH: 32
-  SPEC_NORM: False
+  NCH: 48
+  SPEC_NORM: True
   COND: True 
   UNCOND: False
   SENT_MATCH: False # for contrastive learning
