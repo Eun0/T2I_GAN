@@ -157,6 +157,8 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
         netD.train()
         if cfg.TEXT.JOINT_FT:
             text_encoder.train()
+        
+        total_num_pos = 0.
 
         for step, data in enumerate(train_loader):
             imgs,texts_lst,keys = data 
@@ -198,7 +200,8 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
             
             if (cfg.TRAIN.ENCODER_LOSS.SENT != '') or cfg.TRAIN.ENCODER_LOSS.WORD or (cfg.TRAIN.ENCODER_LOSS.DISC != '') or cfg.TRAIN.ENCODER_LOSS.VGG:
                 labels, num_pos = make_labels(batch_size, b_global= cfg.TRAIN.ENCODER_LOSS.B_GLOBAL, sent_embs = bert_embs)
-            
+                total_num_pos += num_pos.float().mean().item()
+
             enc_loss = 0.
             if cfg.TRAIN.ENCODER_LOSS.SENT != '':
                 assert cfg.DISC.SENT_MATCH or cfg.DISC.IMG_MATCH
@@ -303,7 +306,8 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
             log_dict.update({'errD_mismatch':errD_mismatch.item()}) if cfg.TRAIN.RMIS_LOSS else None
             log_dict.update({'ds_loss':ds_loss.item()}) if cfg.TRAIN.ENCODER_LOSS.SENT else None
             log_dict.update({'gs_loss':gs_loss.item()}) if cfg.TRAIN.ENCODER_LOSS.SENT else None
-            log_dict.update({'disc_loss':disc_loss.item()}) if cfg.TRAIN.ENCODER_LOSS.DISC else None 
+            log_dict.update({'disc_loss':disc_loss.item()}) if cfg.TRAIN.ENCODER_LOSS.DISC else None
+            log_dict.update({'mean_num_pos': (total_num_pos/(step+1))}) if cfg.TRAIN.ENCODER_LOSS.B_GLOBAL else None
             wandb.log(log_dict)
         else:
             writer.add_scalar('epoch', epoch, epoch)
@@ -315,7 +319,7 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
             writer.add_scalar('ds_loss',ds_loss.item(), epoch) if cfg.TRAIN.ENCODER_LOSS.SENT else None
             writer.add_scalar('gs_loss',gs_loss.item(), epoch) if cfg.TRAIN.ENCODER_LOSS.SENT else None
             writer.add_scalar('disc_loss',disc_loss.item(), epoch) if cfg.TRAIN.ENCODER_LOSS.DISC else None
-
+            writer.add_scalar('mean_num_pos',(total_num_pos/(step+1)), epoch)
         with torch.no_grad():
             netG.eval()
             text_encoder.eval()
