@@ -102,7 +102,7 @@ class PROJD_GET_LOGITS(nn.Module):
             logit = logit.view(-1)
             match += logit
 
-        return [match, out, sent_embs]
+        return [match, out_img, sent_embs]
 
 class ResBlockDown(nn.Module):
 
