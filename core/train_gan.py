@@ -321,7 +321,7 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
             writer.add_scalar('ds_loss',ds_loss.item(), epoch) if cfg.TRAIN.ENCODER_LOSS.SENT else None
             writer.add_scalar('gs_loss',gs_loss.item(), epoch) if cfg.TRAIN.ENCODER_LOSS.SENT else None
             writer.add_scalar('disc_loss',disc_loss.item(), epoch) if cfg.TRAIN.ENCODER_LOSS.DISC else None
-            writer.add_scalar('mean_num_pos',(total_num_pos/(step+1)), epoch)
+            writer.add_scalar('mean_num_pos',(total_num_pos/(step+1)), epoch) if cfg.TRAIN.ENCODER_LOSS.B_GLOBAL else None
         with torch.no_grad():
             netG.eval()
             text_encoder.eval()
