@@ -25,6 +25,7 @@ from model.encoder import RNN_ENCODER, SBERT_ENCODER, SBERT_FT_ENCODER
 
 from model.df_gan import DF_GEN, DF_DISC
 from model.xmc_gan import XMC_DISC
+from model.df_concept_gan import IN_CONCEPT_DF_GEN
 
 from utils.logger import setup_logger
 from utils.miscc import count_params, weight_init, save_trainable_state_dict
@@ -34,7 +35,7 @@ multiprocessing.set_start_method('spawn', True)
 
 _TEXT_DATASET = {"WORD":WordTextDataset, "SENT":SentTextDataset, }
 _TEXT_ARCH = {"RNN":RNN_ENCODER, "SBERT":SBERT_ENCODER, "SBERT_FT":SBERT_FT_ENCODER}
-_GEN_ARCH = {"DF_GEN":DF_GEN, }
+_GEN_ARCH = {"DF_GEN":DF_GEN, "IN_CONCEPT_DF_GEN":IN_CONCEPT_DF_GEN, }
 _DISC_ARCH = {"DF_DISC":DF_DISC, "XMC_DISC":XMC_DISC}
 
 
@@ -517,8 +518,6 @@ if __name__ == '__main__':
     optimizerG = torch.optim.Adam(g_param, lr = cfg.TRAIN.OPT.G_LR, betas=(cfg.TRAIN.OPT.G_BETA1, cfg.TRAIN.OPT.G_BETA2))
     optimizerD = torch.optim.Adam(d_param, lr = cfg.TRAIN.OPT.D_LR, betas=(cfg.TRAIN.OPT.D_BETA1, cfg.TRAIN.OPT.D_BETA2))
     
-    
-
     if state_epoch != 0:
         netG.load_state_dict(torch.load(f'{model_dir}/netG_{state_epoch:03d}.pth',map_location='cuda'))
         netD.load_state_dict(torch.load(f'{model_dir}/netD_{state_epoch:03d}.pth',map_location='cuda'))
