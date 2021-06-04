@@ -319,7 +319,11 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
         with torch.no_grad():
             netG.eval()
             text_encoder.eval()
-            words_embs, sent_embs, mask = text_encoder(fixed_caps, fixed_cap_lens)
+            if not cfg.TEXT.JOINT_FT:
+                words_embs, sent_embs, mask = text_encoder(fixed_caps, fixed_cap_lens)
+            else:
+                words_embs, sent_embs, mask, _ = text_encoder(fixed_caps, fixed_cap_lens)
+            
             fake = netG(fixed_noise, sent_embs, words_embs = words_embs, mask = mask)
             vutils.save_image(fake.data,f'{img_dir}/fake_samples_epoch_{epoch:03d}.png',normalize=True,scale_each=True)
 
