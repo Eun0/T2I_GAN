@@ -337,7 +337,7 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
             fake = netG(fixed_noise, sent_embs, words_embs = words_embs, mask = mask)
             vutils.save_image(fake.data,f'{img_dir}/fake_samples_epoch_{epoch:03d}.png',normalize=True,scale_each=True)
 
-        if epoch > 50:
+        if epoch > 30:
             torch.save(netG.state_dict(),f'{model_dir}/netG_{epoch:03d}.pth')
             torch.save(netD.state_dict(),f'{model_dir}/netD_{epoch:03d}.pth')
             torch.save(optimizerG.state_dict(),f'{model_dir}/optimizerG.pth')
