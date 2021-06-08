@@ -1,10 +1,10 @@
-CONFIG_NAME: 'DF_GAN_SBERT'
+CONFIG_NAME: 'XMC_GAN_SBERT_FT_SENT_MATCH_WITHD'
 DATASET_NAME: 'coco'
 
 TRAIN:
   FLAG: True
-  MAX_EPOCH: 360
-  BATCH_SIZE: 72
+  MAX_EPOCH: 121
+  BATCH_SIZE: 24
   NUM_WORKERS: 4
   LOG_INTERVAL: 200
   SAVE_INTERVAL: 1
@@ -12,18 +12,18 @@ TRAIN:
 
   HE_INIT: False
 
-  NEF: 256
+  NEF: 128
   NCH: 32
-  NOISE_DIM: 100
+  NOISE_DIM: 128
 
-  RMIS_LOSS: True
-  MAGP: True
+  RMIS_LOSS: False
+  MAGP: False
 
   ENCODER_LOSS:
     B_GLOBAL: False
-    SENT: ''
+    SENT: 'XMC'
     WORD: False
-    DISC: ''
+    DISC: 'XMC'
     VGG: False
 
   SMOOTH:
@@ -31,25 +31,25 @@ TRAIN:
 
   OPT:
     G_LR: 0.0001
-    G_BETA1: 0.0
-    G_BETA2: 0.9
+    G_BETA1: 0.5
+    G_BETA2: 0.999
     D_LR: 0.0004
-    D_BETA1: 0.0
-    D_BETA2: 0.9
+    D_BETA1: 0.5
+    D_BETA2: 0.999
 
 GEN:
-  ENCODER_NAME: 'DF_GEN'
-  NORMALIZE: False
+  ENCODER_NAME: 'XMC_GEN'
+  NORMALIZE: True
   PROJ_TEXT: True
 
 DISC:
-  ENCODER_NAME: 'DF_DISC'
+  ENCODER_NAME: 'XMC_DISC'
   ENCODER_DIR: ''
   NCH: 32
-  SPEC_NORM: False
+  SPEC_NORM: True
   COND: True 
-  UNCOND: False
-  SENT_MATCH: False # for contrastive learning
+  UNCOND: True
+  SENT_MATCH: True # for contrastive learning
   IMG_MATCH: False  # for contrastive learning
 
 IMG:
@@ -61,22 +61,20 @@ TEXT:
   MAX_LENGTH: 20
   VOCA_SIZE: 27297
 
-  ENCODER_NAME: 'SBERT' #'RNN' # 'SBERT'
+  ENCODER_NAME: 'SBERT_FT' #'RNN' # 'SBERT' 'SBERT_FT'
   ENCODER_DIR: ''    #''   #'data/DAMSMencoders/coco/text_encoder100.pth'
   EMBEDDING_DIM: 768 #256  #768
   NUM_LAYERS: 1
-  RNN_TYPE: 'LSTM'
-
-  JOINT_FT: False
+  #RNN_TYPE: 'LSTM'
+  JOINT_FT: True
+  FT_DIM: 256
   UPDATE_WITH_G: False
-  UPDATE_WITH_D: False
+  UPDATE_WITH_D: True
   G_SENT_DETACH: True
-  G_SENT_LOSS: False
+  G_SENT_LOSS: True
 
   # if use bert text encoder
-  #FIX_BERT: True
-  #BERT_NORM: False
-  #POOLING_MODE: 'MEAN'
-  #SENT_FT: False
-  #WORD_FT: False
-  #JOINT_FT: False
+  FIX_BERT: True
+  BERT_NORM: False
+  POOLING_MODE: 'MEAN'
+  
