@@ -68,7 +68,7 @@ TEXT:
   #RNN_TYPE: 'LSTM'
   JOINT_FT: False
   UPDATE_WITH_G: False
-  UPDATE_WITHD: False
+  UPDATE_WITH_D: False
   G_SENT_DETACH: True
   G_SENT_LOSS: True
 
