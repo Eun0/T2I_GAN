@@ -497,7 +497,7 @@ if __name__ == '__main__':
     g_arch = _GEN_ARCH[cfg.GEN.ENCODER_NAME]
     d_arch = _DISC_ARCH[cfg.DISC.ENCODER_NAME]
     
-    cond_dim = cfg.TEXT.EMBEDDING_DIM if not cfg.TEXT.JOINT_FT else cfg.TRAIN.NEF
+    cond_dim = cfg.TEXT.EMBEDDING_DIM if not cfg.TEXT.JOINT_FT else cfg.TEXT.FT_DIM
 
     netG = g_arch(cfg, cond_dim = cond_dim).cuda()
     netD = d_arch(cfg, cond_dim = cond_dim, is_disc = True).cuda()

@@ -1,16 +1,16 @@
-CONFIG_NAME: 'XMC_GAN'
+CONFIG_NAME: 'XMC_GAN_FT'
 DATASET_NAME: 'coco'
 
 TRAIN:
   FLAG: True
-  MAX_EPOCH: 121
-  BATCH_SIZE: 24
+  MAX_EPOCH: 180
+  BATCH_SIZE: 36
   NUM_WORKERS: 4
   LOG_INTERVAL: 200
   SAVE_INTERVAL: 1
   N_CRITIC: 2
 
-  HE_INIT: False
+  HE_INIT: True
 
   NEF: 128
   NCH: 32
@@ -49,8 +49,8 @@ DISC:
   SPEC_NORM: True
   COND: True 
   UNCOND: True
-  SENT_MATCH: True # for contrastive learning
-  IMG_MATCH: False  # for contrastive learning
+  SENT_MATCH: False # for contrastive learning
+  IMG_MATCH: True  # for contrastive learning
 
 IMG:
   SIZE: 128
@@ -61,19 +61,20 @@ TEXT:
   MAX_LENGTH: 20
   VOCA_SIZE: 27297
 
-  ENCODER_NAME: 'SBERT' #'RNN' # 'SBERT'
+  ENCODER_NAME: 'SBERT_FT' #'RNN' # 'SBERT' "SBERT_FT"
   ENCODER_DIR: ''    #''   #'data/DAMSMencoders/coco/text_encoder100.pth'
   EMBEDDING_DIM: 768 #256  #768
   NUM_LAYERS: 1
   #RNN_TYPE: 'LSTM'
-  JOINT_FT: False
+  JOINT_FT: True
+  FT_DIM: 256
   UPDATE_WITH_G: False
-  UPDATE_WITH_D: False
+  UPDATE_WITH_D: True
   G_SENT_DETACH: True
   G_SENT_LOSS: True
 
   # if use bert text encoder
   FIX_BERT: True
-  BERT_NORM: False
+  BERT_NORM: True
   POOLING_MODE: 'MEAN'
   
