@@ -140,10 +140,17 @@ class D_GET_LOGITS(nn.Module):
     def __init__(self, cfg, cond_dim,  ndf, spec_norm = False):
         super(D_GET_LOGITS, self).__init__()
 
-        #nef = cfg.TRAIN.NEF
-        #text_dim = cfg.TEXT.EMBEDDING_DIM
-        #self.sent_match = cfg.DISC.SENT_MATCH
+        nef = cfg.TRAIN.NEF
+        text_dim = cfg.TEXT.EMBEDDING_DIM
+        
         self.img_match = cfg.DISC.IMG_MATCH
+
+        if cfg.GEN.PROJ_TEXT:
+            self.proj_sent = linear(text_dim, nef)
+            text_dim = nef
+        else:
+            self.proj_sent = nn.Identity()
+            text_dim = cond_dim
 
         if self.img_match:
             self.proj_match = linear(ndf * 16, cond_dim, spec_norm=spec_norm) # image
@@ -153,7 +160,7 @@ class D_GET_LOGITS(nn.Module):
             self.proj_match = nn.Identity()
 
         self.joint_conv = nn.Sequential(
-            conv2d_nxn(in_dim = ndf * 16 + cond_dim, out_dim = ndf * 2, kernel_size = 3, stride = 1, padding = 1, bias = False, spec_norm = spec_norm),
+            conv2d_nxn(in_dim = ndf * 16 + text_dim, out_dim = ndf * 2, kernel_size = 3, stride = 1, padding = 1, bias = False, spec_norm = spec_norm),
             nn.LeakyReLU(0.2,inplace=True),
             conv2d_nxn(in_dim = ndf * 2, out_dim = 1, kernel_size = 4, stride = 1, padding = 0, bias=False, spec_norm = spec_norm),
         )
@@ -169,6 +176,7 @@ class D_GET_LOGITS(nn.Module):
         else:
             out_sent = self.proj_match(sent_embs) # [bs, ndf * 16] for text-img contrastive learning or [bs, nef]
         
+        sent_embs = self.proj_sent(sent_embs)
         c = sent_embs.view(sent_embs.size(0), -1, 1, 1)
         c = c.repeat(1, 1, 4, 4)
         h_c_code = torch.cat((x, c), 1)
