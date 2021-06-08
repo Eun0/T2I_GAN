@@ -48,6 +48,7 @@ def parse_args():
     parser.add_argument('--log_type',type=str,default='tb')
     parser.add_argument('--bs',type=int,default=-1)
     parser.add_argument('--imsize',type=int,default=-1)
+    parser.add_argument('--max_epoch',type=int,default=-1)
     parser.add_argument('--eval',action='store_true')
     args = parser.parse_args()
     return args
@@ -421,6 +422,8 @@ if __name__ == '__main__':
         cfg.IMG.SIZE = args.imsize
     if args.bs != -1:
         cfg.TRAIN.BATCH_SIZE = args.bs
+    if args.max_epoch != -1:
+        cfg.TRAIN.MAX_EPOCH = args.max_epoch
 
     random.seed(args.seed)
     np.random.seed(args.seed)
