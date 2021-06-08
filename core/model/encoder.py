@@ -34,19 +34,19 @@ class SBERT_FT_ENCODER(nn.Module):
 
         joint_ft = cfg.TEXT.JOINT_FT
         text_dim = cfg.TEXT.EMBEDDING_DIM
-        nef = cfg.TRAIN.NEF
+        ft_dim = cfg.TEXT.FT_DIM
 
-        self._define_modules(joint_ft=joint_ft, text_dim=text_dim, nef = nef)
+        self._define_modules(joint_ft=joint_ft, ft_dim=ft_dim, text_dim = text_dim)
 
-    def _define_modules(self, joint_ft = False, text_dim = 256, nef = 256):
+    def _define_modules(self, joint_ft = False, ft_dim = 256, text_dim = 256):
         self.bert = SentenceTransformer('stsb-roberta-base')
         for param in self.bert.parameters():
             param.requires_grad = False 
         self.bert.eval()
         self.bert.max_seq_length = self.max_seq_length
 
-        self.proj_sent = nn.Linear(text_dim, nef) if joint_ft else nn.Identity()
-        self.proj_word = nn.Conv1d(text_dim, nef, 1, 1, 0) if joint_ft else nn.Identity()
+        self.proj_sent = nn.Linear(text_dim, ft_dim) if joint_ft else nn.Identity()
+        self.proj_word = nn.Conv1d(text_dim, ft_dim, 1, 1, 0) if joint_ft else nn.Identity()
         
         print('SBERT ENCODER')
 
