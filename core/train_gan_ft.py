@@ -41,7 +41,7 @@ _DISC_ARCH = {"DF_DISC":DF_DISC, "XMC_DISC":XMC_DISC}
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train T2I-GAN')
-    parser.add_argument('--cfg',type=str,default='cfg/xmc_gan_sbert_ft_img_match_withD.yml')
+    parser.add_argument('--cfg',type=str,default='cfg/df_gan/df_gan_sbert_img_match_global_sent.yml')
     parser.add_argument('--gpu',dest = 'gpu_id', type=int, default=0)
     parser.add_argument('--seed',type=int,default=100)
     parser.add_argument('--resume_epoch',type=int,default=0)
@@ -225,7 +225,7 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
 
             if cfg.TRAIN.MAGP:
                 if cfg.TEXT.JOINT_FT:
-                    words_embs, sent_embs, mask = text_encoder(caps, cap_lens)
+                    words_embs, sent_embs, mask, bert_embs = text_encoder(caps, cap_lens)
                     sent_embs = sent_embs.detach()
                
                 interpolated = (imgs.data).requires_grad_()

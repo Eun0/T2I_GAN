@@ -1,0 +1,85 @@
+CONFIG_NAME: 'DF_GAN_SBERT_FT_IMG_MATCH_SENT_WITHD'
+DATASET_NAME: 'coco'
+
+TRAIN:
+  FLAG: True
+  MAX_EPOCH: 360
+  BATCH_SIZE: 72
+  NUM_WORKERS: 4
+  LOG_INTERVAL: 200
+  SAVE_INTERVAL: 1
+  N_CRITIC: 1
+
+  HE_INIT: False
+
+  NEF: 256
+  NCH: 32
+  NOISE_DIM: 100
+
+  RMIS_LOSS: True
+  MAGP: True
+
+  ENCODER_LOSS:
+    B_GLOBAL: False
+    SENT: 'DAMSM'
+    WORD: False
+    DISC: ''
+    VGG: False
+
+  SMOOTH:
+    GLOBAL: 0. # if 0 adaptive 
+    SENT: 0.1
+    DISC: 1.0
+
+  OPT:
+    G_LR: 0.0001
+    G_BETA1: 0.0
+    G_BETA2: 0.9
+    D_LR: 0.0004
+    D_BETA1: 0.0
+    D_BETA2: 0.9
+
+GEN:
+  ENCODER_NAME: 'DF_GEN'
+  NORMALIZE: False
+  PROJ_TEXT: False
+
+DISC:
+  ENCODER_NAME: 'DF_DISC'
+  ENCODER_DIR: ''
+  NCH: 32
+  SPEC_NORM: False
+  COND: True 
+  UNCOND: False
+  SENT_MATCH: False # for contrastive learning
+  IMG_MATCH: True  # for contrastive learning
+
+IMG:
+  SIZE: 128
+
+TEXT:
+  TYPE: 'SENT' #'WORD' # 'SENT'
+  CAPTIONS_PER_IMAGE: 5
+  MAX_LENGTH: 20
+  VOCA_SIZE: 27297
+
+  ENCODER_NAME: 'SBERT_FT' #'RNN' # 'SBERT' 'SBERT_FT'
+  ENCODER_DIR: ''    #''   #'data/DAMSMencoders/coco/text_encoder100.pth'
+  EMBEDDING_DIM: 768 #256  #768
+  NUM_LAYERS: 1
+  RNN_TYPE: 'LSTM'
+
+  JOINT_FT: True
+  FT_DIM: 256
+  UPDATE_WITH_G: False
+  UPDATE_WITH_D: True
+  G_SENT_DETACH: True
+  G_SENT_LOSS: True
+
+  # if use bert text encoder
+  #FIX_BERT: True
+  #BERT_NORM: False
+  #POOLING_MODE: 'MEAN'
+  #SENT_FT: False
+  #WORD_FT: False
+  #JOINT_FT: False
