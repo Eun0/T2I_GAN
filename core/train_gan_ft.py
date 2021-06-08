@@ -24,7 +24,7 @@ from dataset import WordTextDataset, SentTextDataset, index_to_sent
 from model.encoder import RNN_ENCODER, SBERT_ENCODER, SBERT_FT_ENCODER
 
 from model.df_gan import DF_GEN, DF_DISC
-from model.xmc_gan import XMC_DISC
+from model.xmc_gan import XMC_GEN, XMC_DISC
 from model.df_concept_gan import IN_CONCEPT_DF_GEN
 
 from utils.logger import setup_logger
@@ -35,19 +35,20 @@ multiprocessing.set_start_method('spawn', True)
 
 _TEXT_DATASET = {"WORD":WordTextDataset, "SENT":SentTextDataset, }
 _TEXT_ARCH = {"RNN":RNN_ENCODER, "SBERT":SBERT_ENCODER, "SBERT_FT":SBERT_FT_ENCODER}
-_GEN_ARCH = {"DF_GEN":DF_GEN, "IN_CONCEPT_DF_GEN":IN_CONCEPT_DF_GEN, }
+_GEN_ARCH = {"DF_GEN":DF_GEN, "IN_CONCEPT_DF_GEN":IN_CONCEPT_DF_GEN, "XMC_GEN":XMC_GEN}
 _DISC_ARCH = {"DF_DISC":DF_DISC, "XMC_DISC":XMC_DISC}
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train T2I-GAN')
-    parser.add_argument('--cfg',type=str,default='cfg/df_gen_xmc_disc_cond_nch48_sbert_ft_img_match_sent_disc_global05_loss_nomagp.yml')
+    parser.add_argument('--cfg',type=str,default='cfg/xmc_gan.yml')
     parser.add_argument('--gpu',dest = 'gpu_id', type=int, default=0)
     parser.add_argument('--seed',type=int,default=100)
     parser.add_argument('--resume_epoch',type=int,default=0)
     parser.add_argument('--log_type',type=str,default='tb')
     parser.add_argument('--bs',type=int,default=-1)
     parser.add_argument('--imsize',type=int,default=-1)
+    parser.add_argument('--eval',action='store_true')
     args = parser.parse_args()
     return args
 
@@ -322,7 +323,7 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
             writer.add_scalar('errD_fake',errD_fake.item(), epoch)
             writer.add_scalar('errD_mismatch',errD_mismatch.item(), epoch) if cfg.TRAIN.RMIS_LOSS else None
             writer.add_scalar('ds_loss',ds_loss.item(), epoch) if cfg.TRAIN.ENCODER_LOSS.SENT else None
-            writer.add_scalar('gs_loss',gs_loss.item(), epoch) if cfg.TRAIN.ENCODER_LOSS.SENT else None
+            writer.add_scalar('gs_loss',gs_loss.item(), epoch) if cfg.TRAIN.ENCODER_LOSS.SENT and cfg.TEXT.G_SENT_LOSS else None
             writer.add_scalar('disc_loss',disc_loss.item(), epoch) if cfg.TRAIN.ENCODER_LOSS.DISC else None
             writer.add_scalar('mean_num_pos',(total_num_pos/(step+1)), epoch) if cfg.TRAIN.ENCODER_LOSS.B_GLOBAL else None
         
@@ -346,7 +347,8 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
                 save_trainable_state_dict(text_encoder, f'{model_dir}/text_encoder{epoch:03d}.pth')
 
             logger.info('Save models')
-            eval(cfg = cfg, args = args, loader = test_loader, state_epoch = epoch, text_encoder = text_encoder, netG = netG, logger = logger, img_dir = img_dir, num_samples=6000, writer = writer)
+            if args.eval:
+                eval(cfg = cfg, args = args, loader = test_loader, state_epoch = epoch, text_encoder = text_encoder, netG = netG, logger = logger, img_dir = img_dir, num_samples=6000, writer = writer)
 
 
 @torch.no_grad()
@@ -515,7 +517,7 @@ if __name__ == '__main__':
                 if cfg.TEXT.UPDATE_WITH_D:
                     d_param.append(m)
 
-
+    print(args.eval)
     optimizerG = torch.optim.Adam(g_param, lr = cfg.TRAIN.OPT.G_LR, betas=(cfg.TRAIN.OPT.G_BETA1, cfg.TRAIN.OPT.G_BETA2))
     optimizerD = torch.optim.Adam(d_param, lr = cfg.TRAIN.OPT.D_LR, betas=(cfg.TRAIN.OPT.D_BETA1, cfg.TRAIN.OPT.D_BETA2))
     

@@ -92,6 +92,7 @@ __C.TEXT.JOINT_FT = False
 __C.TEXT.UPDATE_WITH_G = False 
 __C.TEXT.UPDATE_WITH_D = False 
 __C.TEXT.G_SENT_DETACH = True
+__C.TEXT.G_SENT_LOSS = True
 
 def _merge_a_into_b(a, b):
     """Merge config dictionary a into config dictionary b, clobbering the
