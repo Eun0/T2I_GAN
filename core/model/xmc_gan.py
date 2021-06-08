@@ -245,7 +245,9 @@ class AttnResBlockUp(nn.Module):
 
         gc = global_cond.view(BS,1,-1) #[bs, 1, noise_dim + nef]
 
-        gc = gc.repeat(1, 4*H*W, 1) # [bs, h*w, noise_dim + nef]
+        hw = 4*H*W if self.upsample else H*W
+
+        gc = gc.repeat(1, hw, 1) # [bs, h*w, noise_dim + nef]
         gc = gc.permute(0,2,1) # [bs, noise_dim + nef, h*w]
 
         
