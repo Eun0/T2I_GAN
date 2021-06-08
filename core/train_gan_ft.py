@@ -445,6 +445,7 @@ if __name__ == '__main__':
     writer = None
     if args.log_type == 'wdb':
         wandb.init(project = f'{cfg.DATASET_NAME}{cfg.IMG.SIZE}_T2I_bs{cfg.TRAIN.BATCH_SIZE}', config = cfg)
+        wandb.run.name = cfg.CONFIG_NAME
     else:
         writer = SummaryWriter(log_dir = log_dir)
     
