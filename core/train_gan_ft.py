@@ -41,7 +41,7 @@ _DISC_ARCH = {"DF_DISC":DF_DISC, "XMC_DISC":XMC_DISC}
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train T2I-GAN')
-    parser.add_argument('--cfg',type=str,default='cfg/xmc_gan.yml')
+    parser.add_argument('--cfg',type=str,default='cfg/xmc_gan_sbert_ft_img_match_withD.yml')
     parser.add_argument('--gpu',dest = 'gpu_id', type=int, default=0)
     parser.add_argument('--seed',type=int,default=100)
     parser.add_argument('--resume_epoch',type=int,default=0)
@@ -342,8 +342,8 @@ def train(args, cfg, train_set, train_loader, test_loader, state_epoch, text_enc
         if epoch > 50:
             torch.save(netG.state_dict(),f'{model_dir}/netG_{epoch:03d}.pth')
             torch.save(netD.state_dict(),f'{model_dir}/netD_{epoch:03d}.pth')
-            torch.save(optimizerG.state_dict(),f'{model_dir}/optimizerG.pth')
-            torch.save(optimizerD.state_dict(),f'{model_dir}/optimizerD.pth')
+            torch.save(optimizerG.state_dict(),f'{model_dir}/optimizerG_{epoch:03d}.pth')
+            torch.save(optimizerD.state_dict(),f'{model_dir}/optimizerD_{epoch:03d}.pth')
             if cfg.TEXT.JOINT_FT:
                 save_trainable_state_dict(text_encoder, f'{model_dir}/text_encoder{epoch:03d}.pth')
 
@@ -527,8 +527,8 @@ if __name__ == '__main__':
     if state_epoch != 0:
         netG.load_state_dict(torch.load(f'{model_dir}/netG_{state_epoch:03d}.pth',map_location='cuda'))
         netD.load_state_dict(torch.load(f'{model_dir}/netD_{state_epoch:03d}.pth',map_location='cuda'))
-        optimizerG.load_state_dict(torch.load(f'{model_dir}/optimizerG.pth',map_location='cuda'))
-        optimizerD.load_state_dict(torch.load(f'{model_dir}/optimizerD.pth',map_location='cuda'))
+        optimizerG.load_state_dict(torch.load(f'{model_dir}/optimizerG_{state_epoch:03d}.pth',map_location='cuda'))
+        optimizerD.load_state_dict(torch.load(f'{model_dir}/optimizerD_{state_epoch:03d}.pth',map_location='cuda'))
         logger.info(f'Load models, epoch : {state_epoch}')
     elif cfg.DISC.ENCODER_DIR:
         netD.load_state_dict(torch.load(f'{PROJ_DIR}/{cfg.DISC.ENCODER_DIR}',map_location='cuda'), strict = False)
