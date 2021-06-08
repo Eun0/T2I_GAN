@@ -62,17 +62,21 @@ def disc_arch(img_size, nch):
 
 
 class XMC_GEN(nn.Module):
-    def __init__(self, cfg, **kwargs):
+    def __init__(self, cfg, cond_dim, **kwargs):
         super(XMC_GEN, self).__init__()
         self.ngf = cfg.TRAIN.NCH
         noise_dim = cfg.TRAIN.NOISE_DIM
-        text_dim = cfg.TEXT.EMBEDDING_DIM
+        text_dim = cond_dim
         nef = cfg.TRAIN.NEF
 
         arch = gen_arch(img_size = cfg.IMG.SIZE, nch = self.ngf)
 
         init_size = arch['in_channels'][0] * 4 * 4
-        self.proj_sent = nn.Linear(cfg.TEXT.EMBEDDING_DIM, nef)
+        if cfg.GEN.PROJ_TEXT:
+            self.proj_sent = nn.Linear(text_dim, nef)
+        else:
+            self.proj_sent = nn.Identity()
+            
         self.proj_cond = nn.Linear(nef + noise_dim, init_size)
 
         self.upblocks = nn.ModuleList(
@@ -98,7 +102,6 @@ class XMC_GEN(nn.Module):
 
     def forward(self, noise, sent_embs, words_embs, mask, **kwargs):
 
-        noise = self.proj_noise(noise)
         sent_embs = self.proj_sent(sent_embs)
 
         global_cond = torch.cat([noise,sent_embs], dim=1)
@@ -131,10 +134,10 @@ class ResBlockUp(nn.Module):
         self.bn1 = nn.BatchNorm2d(in_dim)
         self.bn2 = nn.BatchNorm2d(out_dim)
 
-        self.conv_gamma1 = nn.Conv1d(cond_dim, in_dim, 1, 1, 0)
-        self.conv_beta1 = nn.Conv1d(cond_dim, in_dim, 1, 1, 0)
-        self.conv_gamma2 = nn.Conv1d(cond_dim, out_dim, 1, 1, 0)
-        self.conv_beta2 = nn.Conv1d(cond_dim, out_dim, 1, 1, 0)
+        self.linear_gamma1 = nn.Linear(cond_dim, in_dim)
+        self.linear_beta1 = nn.Linear(cond_dim, in_dim)
+        self.linear_gamma2 = nn.Linear(cond_dim, out_dim)
+        self.linear_beta2 = nn.Linear(cond_dim, out_dim)
         
         if self.learnable_sc:
             self.c_sc = nn.Conv2d(in_dim, out_dim, 1, stride=1, padding=0)
@@ -157,13 +160,13 @@ class ResBlockUp(nn.Module):
     def residual(self, x, global_cond):
         # global_cond [bs, noise_dim + nef]
         BS = x.size(0)
-        out = self.conv_gamma1(global_cond).view(BS,-1,1,1) * self.bn1(x) + self.conv_beta1(global_cond).view(BS,-1,1,1)
+        out = self.linear_gamma1(global_cond).view(BS,-1,1,1) * self.bn1(x) + self.linear_beta1(global_cond).view(BS,-1,1,1)
         out = F.relu(out, inplace=True)
         if self.upsample:
             out = F.interpolate(out, scale_factor=2)
         
         out = self.c1(out)
-        out = self.conv_gamm2(global_cond).view(BS,-1,1,1) * self.bn2(out) + self.conv_beta2(global_cond).view(BS,-1,1,1)
+        out = self.linear_gamma2(global_cond).view(BS,-1,1,1) * self.bn2(out) + self.linear_beta2(global_cond).view(BS,-1,1,1)
         out = F.relu(out, inplace=True)
         out = self.c2(out)
 
@@ -173,12 +176,13 @@ class ResBlockUp(nn.Module):
 class AttnResBlockUp(nn.Module):
 
     def __init__(self, in_dim, out_dim, cond_dim, text_dim, upsample):
-        super(ResBlockUp, self).__init__()
+        super(AttnResBlockUp, self).__init__()
 
         self.learnable_sc = (in_dim != out_dim)
         self.upsample = upsample
 
-        self.proj_region = nn.Conv1d(in_dim, text_dim, 1, 1, 0, bias = False)
+        self.proj_region1 = nn.Conv1d(in_dim, text_dim, 1, 1, 0, bias = False)
+        self.proj_region2 = nn.Conv1d(out_dim, text_dim, 1, 1, 0, bias = False)
 
         self.c1 = nn.Conv2d(in_dim, out_dim, 3, 1, 1)
         self.c2 = nn.Conv2d(out_dim, out_dim, 3, 1, 1)
@@ -196,19 +200,16 @@ class AttnResBlockUp(nn.Module):
 
     def forward(self, x, global_cond, words_embs, mask, **kwargs):
         
-        context_embs, attn = self.get_context_embs(x, words_embs=words_embs, mask=mask)
-        out = self.residual(x, global_cond = global_cond, context_embs = context_embs)
+        
+        out = self.residual(x, global_cond = global_cond, words_embs=words_embs, mask = mask)
         out += self.shortcut(x)
 
         return out
     
     def get_context_embs(self, x, words_embs, mask):
-        # x [bs, c_in, h, w]
+        # x [bs, c_in, h*w]
         # words_embs [bs, text_dim, T]
         # mask [bs, T]
-
-        x = x.view(x.size(0), x.size(1), -1) # [bs, c_in, h*w]
-        x = self.proj_region(x) # [bs, text_dim, h*w]
 
         x_norm = F.normalize(x, p=2, dim= 1)
         words_embs_norm = F.normalize(words_embs, p=2, dim=1)
@@ -234,7 +235,7 @@ class AttnResBlockUp(nn.Module):
             x = self.c_sc(x)
         return x
 
-    def residual(self, x, global_cond, context_embs):
+    def residual(self, x, global_cond, words_embs, mask):
         # x [bs, c_in, h, w]
         # global_cond [bs, noise_dim + nef]
         # context_embs [bs, text_dim, h*w]
@@ -242,19 +243,35 @@ class AttnResBlockUp(nn.Module):
         BS = x.size(0)
         H = W = x.size(-1)
 
-        global_cond = torch.view(BS, 1, -1) # [bs, 1, noise_dim + nef]
-        global_cond = torch.repeat(1, H*W, 1) # [bs, h*w, noise_dim + nef]
-        global_cond = global_cond.permute(0, 2, 1) # [bs, noise_dim + nef, h*w]
-        
-        cond = torch.cat([global_cond, context_embs], dim=1) # [bs, noise_dim + nef + text_dim, h*w]
+        gc = global_cond.view(BS,1,-1) #[bs, 1, noise_dim + nef]
 
+        gc = gc.repeat(1, 4*H*W, 1) # [bs, h*w, noise_dim + nef]
+        gc = gc.permute(0,2,1) # [bs, noise_dim + nef, h*w]
+
+        
+        img_feat = x.view(x.size(0), x.size(1), -1) # [bs, c_in, h*w]
+        img_feat = self.proj_region1(img_feat) # [bs, text_dim, h*w]
+
+        context_embs, attn = self.get_context_embs(img_feat, words_embs=words_embs, mask=mask)
+
+        cond = torch.cat([gc[:, :, :H*W], context_embs], dim=1) # [bs, noise_dim + nef + text_dim, h*w]
+        
         out = self.conv_gamma1(cond).view(BS, -1, H, W) * self.bn1(x) + self.conv_beta1(cond).view(BS, -1, H, W)
         out = F.relu(out, inplace=True)
         if self.upsample:
             out = F.interpolate(out, scale_factor=2)
+            H *= 2
+            W *= 2
         
         out = self.c1(out)
-        out = self.conv_gamm2(cond).view(BS, -1, H, W) * self.bn2(out) + self.conv_beta2(cond).view(BS, -1, H, W)
+
+        img_feat = out.view(out.size(0), out.size(1), -1) # [bs, c_out, h'*w']
+        img_feat = self.proj_region2(img_feat) # [bs, text_dim, h'*w']
+
+        context_embs, attn = self.get_context_embs(img_feat, words_embs=words_embs, mask=mask)
+        cond = torch.cat([gc[:, :, :H*W], context_embs], dim=1) # [bs, noise_dim + nef + text_dim, h'*w']
+        
+        out = self.conv_gamma2(cond).view(BS, -1, H, W) * self.bn2(out) + self.conv_beta2(cond).view(BS, -1, H, W)
         out = F.relu(out, inplace=True)
         out = self.c2(out)
 
