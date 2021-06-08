@@ -1,10 +1,10 @@
-CONFIG_NAME: 'DF_GAN'
+CONFIG_NAME: 'DF_GAN_SBERT'
 DATASET_NAME: 'coco'
 
 TRAIN:
   FLAG: True
-  MAX_EPOCH: 121
-  BATCH_SIZE: 24
+  MAX_EPOCH: 360
+  BATCH_SIZE: 72
   NUM_WORKERS: 4
   LOG_INTERVAL: 200
   SAVE_INTERVAL: 1
@@ -40,7 +40,7 @@ TRAIN:
 GEN:
   ENCODER_NAME: 'DF_GEN'
   NORMALIZE: False
-  PROJ_TEXT: False
+  PROJ_TEXT: True
 
 DISC:
   ENCODER_NAME: 'DF_DISC'
@@ -56,14 +56,14 @@ IMG:
   SIZE: 64
 
 TEXT:
-  TYPE: 'WORD' #'WORD' # 'SENT'
+  TYPE: 'SENT' #'WORD' # 'SENT'
   CAPTIONS_PER_IMAGE: 5
   MAX_LENGTH: 20
   VOCA_SIZE: 27297
 
-  ENCODER_NAME: 'RNN' #'RNN' # 'SBERT'
-  ENCODER_DIR: 'data/DAMSMencoders/coco/text_encoder100.pth'    #''   #'data/DAMSMencoders/coco/text_encoder100.pth'
-  EMBEDDING_DIM: 256 #256  #768
+  ENCODER_NAME: 'SBERT' #'RNN' # 'SBERT'
+  ENCODER_DIR: ''    #''   #'data/DAMSMencoders/coco/text_encoder100.pth'
+  EMBEDDING_DIM: 768 #256  #768
   NUM_LAYERS: 1
   RNN_TYPE: 'LSTM'
 
@@ -71,7 +71,7 @@ TEXT:
   UPDATE_WITH_G: False
   UPDATE_WITH_D: False
   G_SENT_DETACH: True
-  G_SENT_LOSS: True
+  G_SENT_LOSS: False
 
   # if use bert text encoder
   #FIX_BERT: True
