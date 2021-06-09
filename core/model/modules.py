@@ -31,3 +31,24 @@ def linear(in_dim, out_dim, bias=True, spec_norm=False):
     if spec_norm:
         fc = spectral_norm(fc)
     return fc
+
+
+class GLU(nn.Module):
+    def __init__(self):
+        super(GLU, self).__init__()
+
+    def forward(self, x):
+        nc = x.size(1)
+        assert nc % 2 == 0, 'channels dont divide 2!'
+        nc = int(nc/2)
+        return x[:, :nc] * torch.sigmoid(x[:, nc:])
+
+
+        
+def upBlock(in_planes, out_planes):
+    block = nn.Sequential(
+        nn.Upsample(scale_factor=2, mode='nearest'),
+        nn.Conv2d(in_planes, out_planes * 2,3,1,1),
+        nn.BatchNorm2d(out_planes * 2),
+        GLU())
+    return block

@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from .modules import upBlock
 
 
 def batch_to_cuda(batch):
@@ -22,6 +23,25 @@ def words_pooling(words_embs, sum_mask, mode='MEAN'):
         raise NotImplementedError()
 
     return sent_emb
+
+class DECODER(nn.Module):
+    def __init__(self, ndf):
+        super(DECODER, self).__init__()
+        self.ndf = ndf 
+        self.block0 = upBlock(ndf*16,ndf*8)
+        self.block1 = upBlock(ndf*8,ndf*4)
+        self.block2 = upBlock(ndf*4,ndf*2)
+        self.block3 = upBlock(ndf*2,ndf*1)
+        self.conv = nn.Conv2d(ndf,3,3,1,1)
+
+    def forward(self, out):
+        out = self.block0(out)
+        out = self.block1(out)
+        out = self.block2(out)
+        out = self.block3(out)
+        out = self.conv(out)
+        return out
+
 
 
 class SBERT_FT_ENCODER(nn.Module):
