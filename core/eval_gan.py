@@ -28,7 +28,7 @@ from model.df_gan import DF_GEN, DF_DISC
 from model.xmc_gan import XMC_DISC
 
 from utils.logger import setup_logger
-from utils.miscc import count_params, weight_init, save_trainable_state_dict
+from utils.miscc import count_params, truncated_z_sample
 
 import multiprocessing
 multiprocessing.set_start_method('spawn', True)
@@ -40,91 +40,19 @@ _DISC_ARCH = {"DF_DISC":DF_DISC, "XMC_DISC":XMC_DISC}
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Train T2I-GAN')
-    parser.add_argument('--cfg',type=str,default='cfg/df_gen_xmc_disc_nomagp.yml')
+    parser = argparse.ArgumentParser(description='Eval T2I-GAN')
+    parser.add_argument('--cfg',type=str,default='cfg/df_gan/df_gan_sbert_ft_img_match_global_sent_withGD.yml')
     parser.add_argument('--gpu',dest = 'gpu_id', type=int, default=0)
     parser.add_argument('--seed',type=int,default=100)
-    parser.add_argument('--resume_epoch',type=int,default=51)
+    parser.add_argument('--resume_epoch',type=int,default=80)
+    parser.add_argument('--max_epoch',type=int,default=-1)
     parser.add_argument('--log_type',type=str,default='wdb')
-    parser.add_argument('--bs',type=int,default=-1)
-    parser.add_argument('--imsize',type=int,default=-1)
+    parser.add_argument('--bs',type=int,default=100)
+    parser.add_argument('--imsize',type=int,default=128)
     parser.add_argument('--mode',type=str,default='all')
     args = parser.parse_args()
     return args
 
-def cosine_scores(emb0, emb1):
-    # [bs, D]
-    # [bs, D]
-    emb0 = F.normalize(emb0, p=2, dim=1)
-    emb1 = F.normalize(emb1, p=2, dim=1)
-    scores = torch.mm(emb0, emb1.transpose(0,1))
-    return scores
-
-def make_labels(batch_size, sent_embs, b_global, p = 0.6):
-
-    labels = torch.diag(torch.ones(batch_size)).cuda()
-    num_pos = torch.ones(1)
-    if b_global:
-        sim_mat = cosine_scores(sent_embs,sent_embs) # [bs, bs]
-        sim_mat.fill_diagonal_(3)
-        global_pos = (sim_mat > p) & (sim_mat < 3)
-        num_pos = global_pos.sum(1) + 1
-        global_weight = cfg.TRAIN.SMOOTH.GLOBAL if (cfg.TRAIN.SMOOTH.GLOBAL != 0.) \
-                    else torch.reciprocal(num_pos.float())
-        labels = (labels +  global_weight * global_pos).clamp_(max = 1)
-    return labels.detach(), num_pos
-
-def sent_loss(imgs, txts, labels, b_global):
-    if not b_global:
-        num_pos = 1
-    elif cfg.TRAIN.SMOOTH.GLOBAL == 0.:
-        num_pos = 2
-    else:
-        num_pos = (labels > 0).sum(1)
-    
-    scores = cosine_scores(imgs, txts) # [bs(imgs), bs(txts)]
-
-    s1 = F.log_softmax(scores, dim=1) # [bs, bs(txts)]
-    s1 = s1 * labels
-    s1 = - (s1.sum(1)) / num_pos
-    s1 = s1.mean()
-    
-    s0 = 0.
-    if cfg.TRAIN.ENCODER_LOSS.SENT == 'DAMSM':
-        s0 = F.log_softmax(scores, dim=0) # [bs(imgs), bs]
-        s0 = s0 * labels # [bs, bs]
-        s0 = - (s0.sum(0)) / num_pos
-        s0 = s0.mean()
-        
-    loss = s0 + s1
-
-    return loss
-
-def img_loss(real_imgs, fake_imgs, labels, b_global):
-    if not b_global:
-        num_pos = 1
-    elif cfg.TRAIN.SMOOTH.GLOBAL == 0.:
-        num_pos = 2
-    else:
-        num_pos = (labels > 0).sum(1)
-
-    scores = cosine_scores(real_imgs, fake_imgs) # [bs(real),bs(fake)]
-    
-    i1 = F.log_softmax(scores, dim=1) # [bs, bs(fake)]
-    i1 = i1 * labels #[bs,bs]
-    i1 = -(i1.sum(1)) / num_pos
-    i1 = i1.mean()
-
-    i0 = 0.
-    if cfg.TRAIN.ENCODER_LOSS.DISC == 'DAMSM':
-        i0 = F.log_softmax(scores, dim=0) # [bs(real), bs]
-        i0 = i0 * labels #[bs,bs]
-        i0 = -(i0.sum(0)) / num_pos
-        i0 = i0.mean()
-
-    loss = i0 + i1
-
-    return loss
 
 @torch.no_grad()
 def eval(cfg, args, loader, state_epoch, text_encoder, netG, logger, img_dir, num_samples = 6000, writer = None):
@@ -156,8 +84,9 @@ def eval(cfg, args, loader, state_epoch, text_encoder, netG, logger, img_dir, nu
         else:
             words_embs, sent_embs, mask, bert_embs = text_encoder(caps, cap_lens)
         words_embs, sent_embs = words_embs.detach(), sent_embs.detach()
-
-        noise = torch.randn(sent_embs.size(0), cfg.TRAIN.NOISE_DIM).cuda()
+        noise = truncated_z_sample(batch_size, cfg.TRAIN.NOISE_DIM, seed=args.seed)
+        noise = torch.from_numpy(noise).float().cuda()
+        #noise = torch.randn(sent_embs.size(0), cfg.TRAIN.NOISE_DIM).cuda()
         fake_imgs = netG(noise = noise, sent_embs = sent_embs, words_embs = words_embs, mask = mask)
 
         for j in range(batch_size):
@@ -199,6 +128,8 @@ if __name__ == '__main__':
         cfg.IMG.SIZE = args.imsize
     if args.bs != -1:
         cfg.TRAIN.BATCH_SIZE = args.bs
+    if args.max_epoch != -1:
+        cfg.TRAIN.MAX_EPOCH = args.max_epoch
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -225,7 +156,7 @@ if __name__ == '__main__':
 
     writer = None
     if args.log_type == 'wdb':
-        wandb.init(project = f'{cfg.DATASET_NAME}{cfg.IMG.SIZE}_EVAL_T2I_bs{cfg.TRAIN.BATCH_SIZE}', config = cfg)
+        wandb.init(project = f'Finals', config = cfg)
         wandb.run.name = cfg.CONFIG_NAME
     else:
         writer = SummaryWriter(log_dir = log_dir)

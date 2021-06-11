@@ -1,5 +1,6 @@
-import torch 
-
+import torch
+import numpy as np
+from scipy.stats import truncnorm
 
 def weight_init(m):
     if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
@@ -20,3 +21,9 @@ def save_trainable_state_dict(model, file_name):
             del state_dict[name]
     
     torch.save(state_dict, file_name)
+
+
+def truncated_z_sample(batch_size, z_dim, truncation=0.5, seed=None):
+  state = None if seed is None else np.random.RandomState(seed)
+  values = truncnorm.rvs(-2, 2, size=(batch_size, z_dim), random_state=state)
+  return truncation * values
